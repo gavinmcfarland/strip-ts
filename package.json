@@ -25,6 +25,7 @@
 	"license": "ISC",
 	"description": "",
 	"dependencies": {
+		"@babel/traverse": "^7.27.7",
 		"@vue/compiler-sfc": "^3.5.17",
 		"esbuild": "^0.25.5",
 		"fast-glob": "^3.3.3",
