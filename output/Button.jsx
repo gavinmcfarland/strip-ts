@@ -1,4 +1,5 @@
 import React from "react";
+
 const Button = ({ children, href, target, style, onClick }) => {
   const buttonStyle = {
     display: "block",
@@ -8,12 +9,22 @@ const Button = ({ children, href, target, style, onClick }) => {
     lineHeight: "22px",
     textDecoration: "none",
     color: "var(--figma-color-text)",
-    ...style
-    // Merge with any passed styles
+    ...style // Merge with any passed styles
   };
+
   if (href) {
-    return /* @__PURE__ */ React.createElement("a", { href, target, style: buttonStyle, onClick }, children);
+    return (
+      <a href={href} target={target} style={buttonStyle} onClick={onClick}>
+        {children}
+      </a>);
+
   }
-  return /* @__PURE__ */ React.createElement("button", { style: buttonStyle, onClick }, children);
+
+  return (
+    <button style={buttonStyle} onClick={onClick}>
+      {children}
+    </button>);
+
 };
+
 export default Button;
