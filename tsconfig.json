@@ -1,0 +1,21 @@
+{
+	"compilerOptions": {
+		"target": "ES2022",
+		"module": "ESNext",
+		"moduleResolution": "Node",
+		"outDir": "./dist",
+		"strict": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"allowJs": true,
+		"declaration": true,
+		"declarationMap": true,
+		"sourceMap": true,
+		"removeComments": false,
+		"forceConsistentCasingInFileNames": true,
+		"resolveJsonModule": true,
+		"verbatimModuleSyntax": true
+	},
+	"include": ["src/**/*.ts", "src/**/*.js"],
+	"exclude": ["node_modules", "dist", "output", "tests", "**/*.svelte", "**/*.vue", "**/*.tsx"]
+}
