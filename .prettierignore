@@ -1,0 +1,4 @@
+tests/test-files/
+test-output/
+dist/
+output/

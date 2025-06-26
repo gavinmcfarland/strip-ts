@@ -17,5 +17,5 @@
 		"verbatimModuleSyntax": true
 	},
 	"include": ["src/**/*.ts", "src/**/*.js"],
-	"exclude": ["node_modules", "dist", "output", "tests", "**/*.svelte", "**/*.vue", "**/*.tsx"]
+	"exclude": ["node_modules", "dist", "output", "tests-files", "**/*.svelte", "**/*.vue", "**/*.tsx"]
 }

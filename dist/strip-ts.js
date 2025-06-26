@@ -57,7 +57,7 @@ export async function stripTSFromFile(filePath, outDir = 'output') {
             const isTSX = ext === '.tsx';
             const ast = babelParse(fileContent, {
                 sourceType: 'module',
-                plugins: [isTSX ? 'tsx' : 'typescript', 'jsx'],
+                plugins: ['typescript', 'jsx'],
             });
             traverse(ast, {
                 TSTypeAnnotation(path) {
