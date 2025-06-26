@@ -1,11 +1,15 @@
 {
 	"name": "strip-ts",
-	"version": "0.0.0-alpha.3",
+	"version": "0.0.0-alpha.4",
 	"type": "module",
 	"main": "dist/strip-ts.js",
 	"bin": {
 		"strip-ts": "dist/cli.js"
 	},
+	"files": [
+		"dist/",
+		"README.md"
+	],
 	"directories": {
 		"test": "tests"
 	},
@@ -24,6 +28,7 @@
 		"@vue/compiler-sfc": "^3.5.17",
 		"esbuild": "^0.25.5",
 		"fast-glob": "^3.3.3",
+		"strip-ts": "^0.0.0-alpha.3",
 		"svelte": "^5.34.8",
 		"svelte-preprocess": "^6.0.3",
 		"typescript": "^5.8.3"
