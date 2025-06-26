@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"target": "ESNext",
+		"module": "ESNext",
+		"strict": false,
+		"moduleResolution": "Node",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"allowJs": true,
+		"verbatimModuleSyntax": true,
+		"rootDir": "."
+	},
+	"include": ["**/*"]
+}
