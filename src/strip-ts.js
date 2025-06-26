@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import fs from 'fs/promises';
 import path from 'path';
 import fg from 'fast-glob';
@@ -8,7 +6,13 @@ import { parse as parseVue, compileScript } from '@vue/compiler-sfc';
 import { preprocess } from 'svelte/compiler';
 import sveltePreprocess from 'svelte-preprocess';
 
-async function stripTSFromFile(filePath, outDir = 'dist') {
+/**
+ * Strips TypeScript from a single file and writes the output to outDir.
+ * @param {string} filePath - Path to the file to process.
+ * @param {string} [outDir='output'] - Output directory.
+ * @returns {Promise<string>} - The output file path.
+ */
+export async function stripTSFromFile(filePath, outDir = 'output') {
 	const ext = path.extname(filePath);
 	const fileName = path.basename(filePath);
 	const fileContent = await fs.readFile(filePath, 'utf-8');
@@ -24,7 +28,7 @@ async function stripTSFromFile(filePath, outDir = 'dist') {
 		const outPath = path.join(outDir, fileName.replace(ext, outExt));
 		await fs.mkdir(path.dirname(outPath), { recursive: true });
 		await fs.writeFile(outPath, result.code, 'utf-8');
-		console.log(`✅ Stripped TypeScript from ${filePath}`);
+		return outPath;
 	}
 
 	else if (ext === '.vue') {
@@ -32,20 +36,19 @@ async function stripTSFromFile(filePath, outDir = 'dist') {
 		const hasTs = sfc.descriptor.script?.lang === 'ts' || sfc.descriptor.scriptSetup?.lang === 'ts';
 
 		if (!hasTs) {
-			console.log(`ℹ️ No TypeScript in ${filePath}`);
-			return;
+			return null;
 		}
 
 		const script = compileScript(sfc.descriptor, { id: 'noop', inlineTemplate: true });
 		const replaced = fileContent
 			.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>')
 			.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script setup>')
-			.replace(/<script[^>]*setup[^>]*>[^]*?<\/script>/, `<script setup>\n${script.content}\n</script>`);
+			.replace(/<script[^>]*setup[^>]*>[^]*?<\/script>/, `<script setup>\n${script.content}\n<\/script>`);
 
 		const outPath = path.join(outDir, fileName);
 		await fs.mkdir(path.dirname(outPath), { recursive: true });
 		await fs.writeFile(outPath, replaced, 'utf-8');
-		console.log(`✅ Stripped TypeScript from ${filePath}`);
+		return outPath;
 	}
 
 	else if (ext === '.svelte') {
@@ -55,34 +58,34 @@ async function stripTSFromFile(filePath, outDir = 'dist') {
 		const outPath = path.join(outDir, fileName);
 		await fs.mkdir(path.dirname(outPath), { recursive: true });
 		await fs.writeFile(outPath, replaced, 'utf-8');
-		console.log(`✅ Stripped TypeScript from ${filePath}`);
+		return outPath;
 	}
 
 	else {
-		console.warn(`❌ Unsupported file type: ${filePath}`);
+		throw new Error(`Unsupported file type: ${filePath}`);
 	}
 }
 
-async function main() {
-	const globs = process.argv.slice(2);
-	if (globs.length === 0) {
-		console.error('Please provide file globs to process.');
-		process.exit(1);
-	}
-
+/**
+ * Strips TypeScript from multiple files matching the provided globs or file paths.
+ * @param {string[]} globs - Array of file globs or paths.
+ * @param {string} [outDir='dist'] - Output directory.
+ * @returns {Promise<string[]>} - Array of output file paths.
+ */
+export async function stripTSFromFiles(globs, outDir = 'output') {
 	const files = await fg(globs, { onlyFiles: true });
 	if (files.length === 0) {
-		console.warn('⚠️ No files matched the provided patterns.');
-		return;
+		return [];
 	}
-
+	const results = [];
 	for (const file of files) {
 		try {
-			await stripTSFromFile(file);
+			const outPath = await stripTSFromFile(file, outDir);
+			if (outPath) results.push(outPath);
 		} catch (err) {
-			console.error(`❌ Error processing ${file}:`, err.message);
+			// Optionally, collect errors or rethrow
+			// For now, just skip errored files
 		}
 	}
+	return results;
 }
-
-main();
