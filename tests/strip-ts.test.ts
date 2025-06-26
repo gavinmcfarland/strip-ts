@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
-import { stripTSFromFiles, stripTSFromFile } from '../src/strip-ts';
+import { stripTSFromFiles, stripTSFromFile, stripTSFromString } from '../src/strip-ts';
 
 describe('stripTSFromFiles', () => {
 	const testOutputDir = 'test-output';
@@ -189,6 +189,279 @@ describe('stripTSFromFiles', () => {
 
 			// Clean up
 			await fs.unlink(noTsFile);
+		});
+	});
+
+	describe('stripTSFromString', () => {
+		describe('TypeScript (.ts) strings', () => {
+			it('should strip TypeScript annotations from .ts strings', async () => {
+				const tsCode = `
+interface User {
+	name: string;
+	age: number;
+}
+
+function greet(user: User): string {
+	return \`Hello, \${user.name}! You are \${user.age} years old.\`;
+}
+
+const user: User = { name: 'John', age: 30 };
+const message: string = greet(user);
+`;
+
+				const result = await stripTSFromString(tsCode, 'ts');
+
+				// Should remove TypeScript annotations
+				expect(result).not.toContain('interface User');
+				expect(result).not.toContain(': User');
+				expect(result).not.toContain(': string');
+				expect(result).not.toContain(': number');
+
+				// Should keep functionality
+				expect(result).toContain('function greet(user)');
+				expect(result).toContain('return `Hello, ${user.name}! You are ${user.age} years old.`');
+				expect(result).toContain("const user = { name: 'John', age: 30 }");
+				expect(result).toContain('const message = greet(user)');
+			});
+
+			it('should handle type assertions and non-null assertions', async () => {
+				const tsCode = `
+const element = document.getElementById('app') as HTMLElement;
+const value = input.value!;
+const data = response.data as UserData;
+`;
+
+				const result = await stripTSFromString(tsCode, 'ts');
+
+				// Should remove type assertions and non-null assertions
+				expect(result).not.toContain('as HTMLElement');
+				expect(result).not.toContain('as UserData');
+				expect(result).not.toContain('!');
+
+				// Should keep expressions
+				expect(result).toContain("const element = document.getElementById('app')");
+				expect(result).toContain('const value = input.value');
+				expect(result).toContain('const data = response.data');
+			});
+		});
+
+		describe('TypeScript React (.tsx) strings', () => {
+			it('should strip TypeScript annotations from .tsx strings', async () => {
+				const tsxCode = `
+import React from 'react';
+
+interface ButtonProps {
+	children: React.ReactNode;
+	onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+	style?: React.CSSProperties;
+}
+
+function Button({ children, onClick, style }: ButtonProps): JSX.Element {
+	const handleClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
+		if (onClick) {
+			onClick(event);
+		}
+	};
+
+	return (
+		<button onClick={handleClick} style={style}>
+			{children}
+		</button>
+	);
+}
+
+export default Button;
+`;
+
+				const result = await stripTSFromString(tsxCode, 'tsx');
+
+				// Should remove TypeScript annotations
+				expect(result).not.toContain('interface ButtonProps');
+				expect(result).not.toContain(': React.ReactNode');
+				expect(result).not.toContain(': React.MouseEvent<');
+				expect(result).not.toContain(': React.CSSProperties');
+				expect(result).not.toContain(': JSX.Element');
+				expect(result).not.toContain(': void');
+
+				// Should keep JSX and functionality
+				expect(result).toContain("import React from 'react'");
+				expect(result).toContain('function Button({ children, onClick, style })');
+				expect(result).toContain('<button onClick={handleClick} style={style}>');
+				expect(result).toContain('{children}');
+				expect(result).toContain('export default Button');
+			});
+		});
+
+		describe('Vue (.vue) strings', () => {
+			it('should strip TypeScript annotations from .vue strings', async () => {
+				const vueCode = `
+<template>
+	<button v-if="href" :href="href" class="button button-{variant}">
+		<slot />
+	</button>
+	<button v-else class="button button-{variant}" @click="handleClick">
+		<slot />
+	</button>
+</template>
+
+<script lang="ts">
+interface ButtonProps {
+	href?: string;
+	variant?: string;
+}
+
+export default {
+	props: {
+		href: {
+			type: String as () => string,
+			required: false
+		},
+		variant: {
+			type: String as () => string,
+			default: 'primary'
+		}
+	},
+	methods: {
+		handleClick(event: MouseEvent): void {
+			this.$emit('click', event);
+		}
+	}
+};
+</script>
+
+<style scoped>
+.button {
+	font-family: inherit;
+}
+</style>
+`;
+
+				const result = await stripTSFromString(vueCode, 'vue');
+
+				// Should remove lang="ts" from script tag
+				expect(result).toContain('<script>');
+				expect(result).not.toContain('<script lang="ts">');
+
+				// Should remove TypeScript annotations
+				expect(result).not.toContain('interface ButtonProps');
+				expect(result).not.toContain(': string');
+				expect(result).not.toContain(': MouseEvent');
+				expect(result).not.toContain(': void');
+				expect(result).not.toContain('as () => string');
+
+				// Should keep Vue functionality
+				expect(result).toContain('<template>');
+				expect(result).toContain('v-if="href"');
+				expect(result).toContain('v-else');
+				expect(result).toContain('<slot />');
+				expect(result).toContain('export default {');
+				expect(result).toContain('handleClick(event)');
+				expect(result).toContain('<style scoped>');
+			});
+
+			it('should return original content for Vue strings without TypeScript', async () => {
+				const vueCode = `
+<template>
+	<button>Click me</button>
+</template>
+
+<script>
+export default {
+	methods: {
+		handleClick() {
+			console.log('clicked');
+		}
+	}
+};
+</script>
+`;
+
+				const result = await stripTSFromString(vueCode, 'vue');
+
+				// Should return original content unchanged
+				expect(result).toBe(vueCode);
+			});
+		});
+
+		describe('Svelte (.svelte) strings', () => {
+			it('should strip TypeScript annotations from .svelte strings', async () => {
+				const svelteCode = `
+<script lang="ts">
+	export let href: string | undefined = undefined;
+	export let variant: string = 'primary';
+
+	$: buttonStyle: Record<string, string> = {
+		display: 'block',
+		padding: '10px 20px'
+	};
+
+	function handleClick(event: MouseEvent): void {
+		console.log('Button clicked', event);
+	}
+</script>
+
+{#if href}
+	<a {href} class="button button-{variant}" style={buttonStyle}>
+		<slot />
+	</a>
+{:else}
+	<button class="button button-{variant}" style={buttonStyle} on:click={handleClick}>
+		<slot />
+	</button>
+{/if}
+
+<style>
+	.button {
+		font-family: inherit;
+	}
+</style>
+`;
+
+				const result = await stripTSFromString(svelteCode, 'svelte');
+
+				// Should remove lang="ts" from script tag
+				expect(result).toContain('<script>');
+				expect(result).not.toContain('<script lang="ts">');
+
+				// Should remove TypeScript annotations
+				expect(result).not.toContain(': string | undefined');
+				expect(result).not.toContain(': string');
+				expect(result).not.toContain(': Record<string, string>');
+				expect(result).not.toContain(': void');
+
+				// Should keep Svelte functionality
+				expect(result).toContain('export let href');
+				expect(result).toContain('export let variant');
+				expect(result).toContain('$: buttonStyle');
+				expect(result).toContain('function handleClick(event)');
+				expect(result).toContain('{#if href}');
+				expect(result).toContain('{:else}');
+				expect(result).toContain('{/if}');
+				expect(result).toContain('<style>');
+			});
+		});
+
+		describe('Error handling', () => {
+			it('should throw error for unsupported file types', async () => {
+				const invalidCode = 'console.log("test");';
+
+				await expect(stripTSFromString(invalidCode, 'txt' as any)).rejects.toThrow('Unsupported file type');
+			});
+
+			it('should handle malformed TypeScript code gracefully', async () => {
+				const malformedCode = `
+interface User {
+	name: string;
+	age: number;
+
+function greet(user: User) {
+	return \`Hello \${user.name}\`;
+}
+`;
+
+				// This should throw a parsing error, which is expected
+				await expect(stripTSFromString(malformedCode, 'ts')).rejects.toThrow();
+			});
 		});
 	});
 });
