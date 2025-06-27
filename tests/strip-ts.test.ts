@@ -96,6 +96,61 @@ describe('stripTSFromFiles', () => {
 			expect(outputContent).toContain('.button {');
 			expect(outputContent).toContain('font-family: inherit;');
 		});
+
+		it('should return null for files without TypeScript', async () => {
+			// Create a Vue file without TypeScript
+			const noTsFile = path.join(testFilesDir, 'NoTS.vue');
+			await fs.writeFile(noTsFile, '<script>export default {}</script>');
+
+			const result = await stripTSFromFile(noTsFile, testOutputDir);
+			expect(result).toBeNull();
+
+			// Clean up
+			await fs.unlink(noTsFile);
+		});
+
+		it('should process Vue files without lang="ts" when forceStrip is true', async () => {
+			// Create a Vue file with TypeScript annotations but no lang="ts"
+			const vueWithTsFile = path.join(testFilesDir, 'VueWithTS.vue');
+			await fs.writeFile(
+				vueWithTsFile,
+				`
+<template>
+	<button @click="handleClick">Click me</button>
+</template>
+
+<script>
+interface ButtonProps {
+	onClick?: (event: MouseEvent) => void;
+}
+
+export default {
+	methods: {
+		handleClick(event: MouseEvent): void {
+			this.$emit('click', event);
+		}
+	}
+};
+</script>
+`
+			);
+
+			const result = await stripTSFromFile(vueWithTsFile, testOutputDir, true);
+			expect(result).toBeTruthy();
+			expect(result).toContain('VueWithTS.vue');
+
+			const outputContent = await fs.readFile(result!, 'utf-8');
+			// Should remove TypeScript annotations
+			expect(outputContent).not.toContain('interface ButtonProps');
+			expect(outputContent).not.toContain(': MouseEvent');
+			expect(outputContent).not.toContain(': void');
+			// Should keep functionality
+			expect(outputContent).toContain('handleClick(event)');
+			expect(outputContent).toContain('this.$emit');
+
+			// Clean up
+			await fs.unlink(vueWithTsFile);
+		});
 	});
 
 	describe('Svelte (.svelte) files', () => {
@@ -147,6 +202,49 @@ describe('stripTSFromFiles', () => {
 			expect(result.some((path) => path.includes('Button.vue'))).toBe(true);
 			expect(result.some((path) => path.includes('Button.svelte'))).toBe(true);
 		});
+
+		it('should process Vue files without lang="ts" when forceStrip is true', async () => {
+			// Create a Vue file with TypeScript annotations but no lang="ts"
+			const vueWithTsFile = path.join(testFilesDir, 'VueWithTS.vue');
+			await fs.writeFile(
+				vueWithTsFile,
+				`
+<template>
+	<button @click="handleClick">Click me</button>
+</template>
+
+<script>
+interface ButtonProps {
+	onClick?: (event: MouseEvent) => void;
+}
+
+export default {
+	methods: {
+		handleClick(event: MouseEvent): void {
+			this.$emit('click', event);
+		}
+	}
+};
+</script>
+`
+			);
+
+			const result = await stripTSFromFiles([`${testFilesDir}/VueWithTS.vue`], testOutputDir, true);
+			expect(result).toHaveLength(1);
+			expect(result[0]).toContain('VueWithTS.vue');
+
+			const outputContent = await fs.readFile(result[0], 'utf-8');
+			// Should remove TypeScript annotations
+			expect(outputContent).not.toContain('interface ButtonProps');
+			expect(outputContent).not.toContain(': MouseEvent');
+			expect(outputContent).not.toContain(': void');
+			// Should keep functionality
+			expect(outputContent).toContain('handleClick(event)');
+			expect(outputContent).toContain('this.$emit');
+
+			// Clean up
+			await fs.unlink(vueWithTsFile);
+		});
 	});
 
 	describe('Error handling', () => {
@@ -189,6 +287,49 @@ describe('stripTSFromFiles', () => {
 
 			// Clean up
 			await fs.unlink(noTsFile);
+		});
+
+		it('should process Vue files without lang="ts" when forceStrip is true', async () => {
+			// Create a Vue file with TypeScript annotations but no lang="ts"
+			const vueWithTsFile = path.join(testFilesDir, 'VueWithTS.vue');
+			await fs.writeFile(
+				vueWithTsFile,
+				`
+<template>
+	<button @click="handleClick">Click me</button>
+</template>
+
+<script>
+interface ButtonProps {
+	onClick?: (event: MouseEvent) => void;
+}
+
+export default {
+	methods: {
+		handleClick(event: MouseEvent): void {
+			this.$emit('click', event);
+		}
+	}
+};
+</script>
+`
+			);
+
+			const result = await stripTSFromFile(vueWithTsFile, testOutputDir, true);
+			expect(result).toBeTruthy();
+			expect(result).toContain('VueWithTS.vue');
+
+			const outputContent = await fs.readFile(result!, 'utf-8');
+			// Should remove TypeScript annotations
+			expect(outputContent).not.toContain('interface ButtonProps');
+			expect(outputContent).not.toContain(': MouseEvent');
+			expect(outputContent).not.toContain(': void');
+			// Should keep functionality
+			expect(outputContent).toContain('handleClick(event)');
+			expect(outputContent).toContain('this.$emit');
+
+			// Clean up
+			await fs.unlink(vueWithTsFile);
 		});
 	});
 
@@ -380,6 +521,40 @@ export default {
 
 				// Should return original content unchanged
 				expect(result).toBe(vueCode);
+			});
+
+			it('should process Vue strings without lang="ts" when forceStrip is true', async () => {
+				const vueCode = `
+<template>
+	<button @click="handleClick">Click me</button>
+</template>
+
+<script>
+interface ButtonProps {
+	onClick?: (event: MouseEvent) => void;
+}
+
+export default {
+	methods: {
+		handleClick(event: MouseEvent): void {
+			this.$emit('click', event);
+		}
+	}
+};
+</script>
+`;
+
+				const result = await stripTSFromString(vueCode, 'vue', true);
+
+				// Should remove TypeScript annotations
+				expect(result).not.toContain('interface ButtonProps');
+				expect(result).not.toContain(': MouseEvent');
+				expect(result).not.toContain(': void');
+				// Should keep functionality
+				expect(result).toContain('handleClick(event)');
+				expect(result).toContain('this.$emit');
+				expect(result).toContain('<template>');
+				expect(result).toContain('<script>');
 			});
 		});
 

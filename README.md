@@ -28,6 +28,9 @@ npx strip-ts src/components/Button.tsx
 # Process multiple files with glob patterns
 npx strip-ts "src/**/*.tsx" "src/**/*.vue"
 
+# Force processing of Vue files even without lang="ts"
+npx strip-ts --force-strip "src/**/*.vue"
+
 # Specify output directory
 npx strip-ts "src/**/*.ts" --out-dir dist
 ```
@@ -44,6 +47,10 @@ console.log(`Processed file: ${outputPath}`);
 // Process multiple files
 const outputPaths = await stripTSFromFiles(['src/**/*.tsx', 'src/**/*.vue', 'src/**/*.svelte'], 'output');
 console.log(`Processed ${outputPaths.length} files`);
+
+// Force processing of Vue files even without lang="ts"
+const forceOutputPaths = await stripTSFromFiles(['src/**/*.vue'], 'output', true);
+console.log(`Force processed ${forceOutputPaths.length} files`);
 ```
 
 ## Supported File Types
@@ -88,6 +95,7 @@ const Button = ({ children, onClick }) => {
 -   Removes TypeScript from `<script lang="ts">` sections
 -   Preserves template and style sections
 -   Removes `lang="ts"` attribute from script tags
+-   **Note**: By default, only processes files with `lang="ts"`. Use `--force-strip` flag or `forceStrip` parameter to process files without this attribute
 
 **Input:**
 
@@ -175,7 +183,7 @@ export default {
 
 ## API Reference
 
-### `stripTSFromFile(filePath: string, outDir?: string): Promise<string | null>`
+### `stripTSFromFile(filePath: string, outDir?: string, forceStrip?: boolean): Promise<string | null>`
 
 Processes a single file and returns the output file path.
 
@@ -183,6 +191,7 @@ Processes a single file and returns the output file path.
 
 -   `filePath` (string): Path to the input file
 -   `outDir` (string, optional): Output directory (default: 'output')
+-   `forceStrip` (boolean, optional): Force processing even if lang doesn't equal "ts" (for Vue files) (default: false)
 
 **Returns:**
 
@@ -192,7 +201,7 @@ Processes a single file and returns the output file path.
 
 -   `Error`: For unsupported file types or processing errors
 
-### `stripTSFromFiles(globs: string[], outDir?: string): Promise<string[]>`
+### `stripTSFromFiles(globs: string[], outDir?: string, forceStrip?: boolean): Promise<string[]>`
 
 Processes multiple files using glob patterns and returns array of output file paths.
 
@@ -200,10 +209,25 @@ Processes multiple files using glob patterns and returns array of output file pa
 
 -   `globs` (string[]): Array of glob patterns to match files
 -   `outDir` (string, optional): Output directory (default: 'output')
+-   `forceStrip` (boolean, optional): Force processing even if lang doesn't equal "ts" (for Vue files) (default: false)
 
 **Returns:**
 
 -   `Promise<string[]>`: Array of output file paths
+
+### `stripTSFromString(content: string, fileType: 'ts' | 'tsx' | 'vue' | 'svelte', forceStrip?: boolean): Promise<string>`
+
+Strips TypeScript from a string and returns the JavaScript equivalent.
+
+**Parameters:**
+
+-   `content` (string): The TypeScript content as a string
+-   `fileType` ('ts' | 'tsx' | 'vue' | 'svelte'): The type of file
+-   `forceStrip` (boolean, optional): Force processing even if lang doesn't equal "ts" (for Vue files) (default: false)
+
+**Returns:**
+
+-   `Promise<string>`: The JavaScript content as a string
 
 ## Development
 
