@@ -25,7 +25,7 @@ export async function stripTSFromFile(
 	const fileContent = await fs.readFile(filePath, 'utf-8');
 
 	if (ext === '.ts' || ext === '.tsx') {
-		console.log(`Processing TypeScript file with Babel: ${filePath}`);
+		// console.log(`Processing TypeScript file with Babel: ${filePath}`);
 		try {
 			// Use dynamic imports that work better with TypeScript compilation
 			const [traverseModule, generateModule] = await Promise.all([
@@ -107,7 +107,7 @@ export async function stripTSFromFile(
 			const outPath = path.join(outDir, fileName.replace(ext, outExt));
 			await fs.mkdir(path.dirname(outPath), { recursive: true });
 			await fs.writeFile(outPath, code, 'utf-8');
-			console.log(`Babel TypeScript processing completed for ${filePath}`);
+			// console.log(`Babel TypeScript processing completed for ${filePath}`);
 			return outPath;
 		} catch (error) {
 			console.error(`Error processing TypeScript file ${filePath}:`, error);
@@ -121,7 +121,7 @@ export async function stripTSFromFile(
 			return null;
 		}
 
-		console.log(`Processing Vue file with TypeScript: ${filePath}`);
+		// console.log(`Processing Vue file with TypeScript: ${filePath}`);
 		try {
 			// Use Babel to strip TypeScript from the script content
 			const [traverseModule, generateModule] = await Promise.all([
@@ -198,7 +198,7 @@ export async function stripTSFromFile(
 			const outPath = path.join(outDir, fileName);
 			await fs.mkdir(path.dirname(outPath), { recursive: true });
 			await fs.writeFile(outPath, replaced, 'utf-8');
-			console.log(`Vue TypeScript processing completed for ${filePath}`);
+			// console.log(`Vue TypeScript processing completed for ${filePath}`);
 			return outPath;
 		} catch (error) {
 			console.error(`Error processing Vue file ${filePath}:`, error);
@@ -259,7 +259,7 @@ export async function stripTSFromString(
 	forceStrip: boolean = false
 ): Promise<string> {
 	if (fileType === 'ts' || fileType === 'tsx') {
-		console.log(`Processing TypeScript string with Babel: ${fileType}`);
+		// console.log(`Processing TypeScript string with Babel: ${fileType}`);
 		try {
 			// Use dynamic imports that work better with TypeScript compilation
 			const [traverseModule, generateModule] = await Promise.all([
@@ -337,7 +337,7 @@ export async function stripTSFromString(
 			});
 
 			const { code } = generate(ast, { retainLines: true, comments: true });
-			console.log(`Babel TypeScript processing completed for ${fileType}`);
+			// console.log(`Babel TypeScript processing completed for ${fileType}`);
 			return code;
 		} catch (error) {
 			console.error(`Error processing TypeScript string (${fileType}):`, error);
@@ -351,7 +351,7 @@ export async function stripTSFromString(
 			return content; // Return original content if no TypeScript
 		}
 
-		console.log(`Processing Vue string with TypeScript`);
+		// console.log(`Processing Vue string with TypeScript`);
 		try {
 			// Use Babel to strip TypeScript from the script content
 			const [traverseModule, generateModule] = await Promise.all([
@@ -425,7 +425,7 @@ export async function stripTSFromString(
 				.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script setup>')
 				.replace(/<script[^>]*>[^]*?<\/script>/, `<script>\n${processedScript}\n</script>`);
 
-			console.log(`Vue TypeScript processing completed`);
+			// console.log(`Vue TypeScript processing completed`);
 			return replaced;
 		} catch (error) {
 			console.error(`Error processing Vue string:`, error);
