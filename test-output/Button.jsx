@@ -1,15 +1,3 @@
-import React from 'react';
-
-
-
-
-
-
-
-
-
-
-
 function Button(props) {
   const { children, href, target, style, onClick, variant = 'primary', disabled = false } = props;
 

@@ -43,8 +43,8 @@ describe('stripTSFromFiles', () => {
 			expect(buttonContent).not.toContain(': React.MouseEvent<');
 			expect(buttonContent).not.toContain('as React.MouseEvent<');
 
-			// Should keep JSX and functionality
-			expect(buttonContent).toContain("import React from 'react'");
+			// Should keep JSX and functionality (React import removed since unused)
+			expect(buttonContent).not.toContain("import React from 'react'");
 			expect(buttonContent).toContain('<button');
 			expect(buttonContent).toContain('<a');
 			expect(buttonContent).toContain('onClick={handleClick}');
@@ -57,8 +57,8 @@ describe('stripTSFromFiles', () => {
 			expect(appContent).not.toContain(': React.FC');
 			expect(appContent).not.toContain('as const');
 
-			// Should keep JSX and functionality
-			expect(appContent).toContain("import React, { useState, useEffect } from 'react'");
+			// Should keep JSX and functionality (React import removed since unused)
+			expect(appContent).toContain('import { useState, useEffect } from "react"');
 			expect(appContent).toContain('const App = () => {');
 			expect(appContent).toContain('useState');
 			expect(appContent).toContain('useEffect(() => {');
@@ -327,7 +327,7 @@ export default {
 
 			const outputContent = await fs.readFile(result!, 'utf-8');
 			expect(outputContent).not.toContain(': React.ReactNode');
-			expect(outputContent).toContain("import React from 'react'");
+			expect(outputContent).not.toContain("import React from 'react'");
 		});
 
 		it('should process App.tsx file correctly', async () => {
@@ -345,8 +345,8 @@ export default {
 			expect(outputContent).not.toContain(': MessageEvent');
 			expect(outputContent).not.toContain('as const');
 
-			// Should keep React functionality
-			expect(outputContent).toContain("import React, { useState, useEffect } from 'react'");
+			// Should keep React functionality (React import removed since unused)
+			expect(outputContent).toContain('import { useState, useEffect } from "react"');
 			expect(outputContent).toContain('const App = () => {');
 			expect(outputContent).toContain('useState');
 			expect(outputContent).toContain('useEffect(() => {');
@@ -504,8 +504,8 @@ export default Button;
 				expect(result).not.toContain(': JSX.Element');
 				expect(result).not.toContain(': void');
 
-				// Should keep JSX and functionality
-				expect(result).toContain("import React from 'react'");
+				// Should keep JSX and functionality (React import removed since unused)
+				expect(result).not.toContain("import React from 'react'");
 				expect(result).toContain('function Button({ children, onClick, style })');
 				expect(result).toContain('<button onClick={handleClick} style={style}>');
 				expect(result).toContain('{children}');
@@ -618,8 +618,8 @@ export default App;
 				expect(result).not.toContain(': React.FC');
 				expect(result).not.toContain('as const');
 
-				// Should keep React functionality
-				expect(result).toContain("import React, { useState, useEffect } from 'react'");
+				// Should keep React functionality (React import removed since unused)
+				expect(result).toContain('import { useState, useEffect } from "react"');
 				expect(result).toContain('const App = () => {');
 				expect(result).toContain('useState');
 				expect(result).toContain('useEffect(() => {');
