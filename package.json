@@ -18,7 +18,8 @@
 		"dev": "tsc --watch",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"prepublishOnly": "npm run build && npm run test:run"
+		"prepublishOnly": "npm run build && npm run test:run",
+		"publish": "np"
 	},
 	"keywords": [],
 	"author": "",
