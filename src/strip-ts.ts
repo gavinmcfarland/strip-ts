@@ -146,7 +146,8 @@ async function removeUnusedImports(code: string, isJSX: boolean = false): Promis
 export async function stripTSFromFile(
 	filePath: string,
 	outDir: string = 'output',
-	forceStrip: boolean = false
+	forceStrip: boolean = false,
+	removeUnusedImportsOpt: boolean = true
 ): Promise<string | null> {
 	const ext = path.extname(filePath);
 	const fileName = path.basename(filePath);
@@ -237,7 +238,7 @@ export async function stripTSFromFile(
 			const { code } = generate(ast, { retainLines: true, comments: true });
 
 			// Remove unused imports after TypeScript stripping
-			let processedCode = await removeUnusedImports(code, isTSX);
+			let processedCode = removeUnusedImportsOpt ? await removeUnusedImports(code, isTSX) : code;
 			// Collapse multiple blank lines into a single blank line
 			processedCode = processedCode.replace(/\n{3,}/g, '\n\n');
 			// Remove leading blank lines at the start of the file
@@ -407,7 +408,8 @@ export async function stripTSFromFiles(
 export async function stripTSFromString(
 	content: string,
 	fileType: 'ts' | 'tsx' | 'vue' | 'svelte',
-	forceStrip: boolean = false
+	forceStrip: boolean = false,
+	removeUnusedImportsOpt: boolean = true
 ): Promise<string> {
 	if (fileType === 'ts' || fileType === 'tsx') {
 		// console.log(`Processing TypeScript string with Babel: ${fileType}`);
@@ -494,7 +496,7 @@ export async function stripTSFromString(
 			const { code } = generate(ast, { retainLines: true, comments: true });
 
 			// Remove unused imports after TypeScript stripping
-			let processedCode = await removeUnusedImports(code, isTSX);
+			let processedCode = removeUnusedImportsOpt ? await removeUnusedImports(code, isTSX) : code;
 			// Collapse multiple blank lines into a single blank line
 			processedCode = processedCode.replace(/\n{3,}/g, '\n\n');
 			// Remove leading blank lines at the start of the file
