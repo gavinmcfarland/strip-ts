@@ -1,6 +1,6 @@
 {
 	"name": "strip-ts",
-	"version": "0.0.0-alpha.6",
+	"version": "0.0.0-alpha.5",
 	"type": "module",
 	"main": "dist/strip-ts.js",
 	"bin": {
@@ -18,7 +18,7 @@
 		"dev": "tsc --watch",
 		"test": "vitest run",
 		"test:watch": "vitest",
-		"prepublishOnly": "npm run build && npm run test:run",
+		"prepublishOnly": "npm run build && npm run test",
 		"publish": "np"
 	},
 	"keywords": [],
