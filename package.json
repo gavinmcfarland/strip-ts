@@ -16,8 +16,8 @@
 	"scripts": {
 		"build": "tsc",
 		"dev": "tsc --watch",
-		"test": "vitest",
-		"test:run": "vitest run",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"prepublishOnly": "npm run build && npm run test:run"
 	},
 	"keywords": [],

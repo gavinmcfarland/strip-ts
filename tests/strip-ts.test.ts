@@ -7,54 +7,106 @@ describe('stripTSFromFiles', () => {
 	const testOutputDir = 'test-output';
 	const testFilesDir = 'tests/test-files';
 
-	beforeEach(async () => {
-		// Clean up test output directory
-		try {
-			await fs.rm(testOutputDir, { recursive: true, force: true });
-		} catch (error) {
-			// Directory doesn't exist, that's fine
-		}
-	});
+	// beforeEach(async () => {
+	// 	// Clean up test output directory
+	// 	try {
+	// 		await fs.rm(testOutputDir, { recursive: true, force: true });
+	// 	} catch (error) {
+	// 		// Directory doesn't exist, that's fine
+	// 	}
+	// });
 
-	afterEach(async () => {
-		// Clean up test output directory
-		try {
-			await fs.rm(testOutputDir, { recursive: true, force: true });
-		} catch (error) {
-			// Ignore cleanup errors
-		}
-	});
+	// afterEach(async () => {
+	// 	// Clean up test output directory
+	// 	try {
+	// 		await fs.rm(testOutputDir, { recursive: true, force: true });
+	// 	} catch (error) {
+	// 		// Ignore cleanup errors
+	// 	}
+	// });
 
 	describe('TypeScript React (.tsx) files', () => {
 		it('should strip TypeScript annotations from .tsx files', async () => {
 			const result = await stripTSFromFiles([`${testFilesDir}/*.tsx`], testOutputDir);
 
-			expect(result).toHaveLength(1);
-			expect(result[0]).toContain('Button.jsx');
+			expect(result).toHaveLength(2);
+			expect(result.some((path) => path.includes('Button.jsx'))).toBe(true);
+			expect(result.some((path) => path.includes('App.jsx'))).toBe(true);
 
-			const outputContent = await fs.readFile(result[0], 'utf-8');
+			// Check Button.jsx
+			const buttonFile = result.find((path) => path.includes('Button.jsx'));
+			const buttonContent = await fs.readFile(buttonFile!, 'utf-8');
 
 			// Should remove TypeScript annotations
-			expect(outputContent).not.toContain(': React.ReactNode');
-			expect(outputContent).not.toContain(': React.CSSProperties');
-			expect(outputContent).not.toContain(': React.MouseEvent<');
-			expect(outputContent).not.toContain('as React.MouseEvent<');
+			expect(buttonContent).not.toContain(': React.ReactNode');
+			expect(buttonContent).not.toContain(': React.CSSProperties');
+			expect(buttonContent).not.toContain(': React.MouseEvent<');
+			expect(buttonContent).not.toContain('as React.MouseEvent<');
 
 			// Should keep JSX and functionality
-			expect(outputContent).toContain("import React from 'react'");
-			expect(outputContent).toContain('<button');
-			expect(outputContent).toContain('<a');
-			expect(outputContent).toContain('onClick={handleClick}');
+			expect(buttonContent).toContain("import React from 'react'");
+			expect(buttonContent).toContain('<button');
+			expect(buttonContent).toContain('<a');
+			expect(buttonContent).toContain('onClick={handleClick}');
+
+			// Check App.jsx
+			const appFile = result.find((path) => path.includes('App.jsx'));
+			const appContent = await fs.readFile(appFile!, 'utf-8');
+
+			// Should remove some TypeScript annotations
+			expect(appContent).not.toContain(': React.FC');
+			expect(appContent).not.toContain('as const');
+
+			// Should keep JSX and functionality
+			expect(appContent).toContain("import React, { useState, useEffect } from 'react'");
+			expect(appContent).toContain('const App = () => {');
+			expect(appContent).toContain('useState');
+			expect(appContent).toContain('useEffect(() => {');
+			expect(appContent).toContain('window.addEventListener');
 		});
 
 		it('should preserve formatting and newlines', async () => {
 			const result = await stripTSFromFiles([`${testFilesDir}/*.tsx`], testOutputDir);
-			const outputContent = await fs.readFile(result[0], 'utf-8');
+
+			// Check Button.jsx formatting
+			const buttonFile = result.find((path) => path.includes('Button.jsx'));
+			const buttonContent = await fs.readFile(buttonFile!, 'utf-8');
 
 			// Should have proper indentation and structure
-			expect(outputContent).toContain('function Button(props)');
-			expect(outputContent).toContain("display: 'block'");
-			expect(outputContent).toContain('const buttonStyle = {');
+			expect(buttonContent).toContain('function Button(props)');
+			expect(buttonContent).toContain("display: 'block'");
+			expect(buttonContent).toContain('const buttonStyle = {');
+
+			// Check App.jsx formatting
+			const appFile = result.find((path) => path.includes('App.jsx'));
+			const appContent = await fs.readFile(appFile!, 'utf-8');
+
+			// Should have proper indentation and structure
+			expect(appContent).toContain('const App = () => {');
+			expect(appContent).toContain('const [rectCount, setRectCount] = useState');
+			expect(appContent).toContain('const styles = {');
+			expect(appContent).toContain('container: {');
+		});
+
+		it('should handle complex React components with hooks and event handlers', async () => {
+			const result = await stripTSFromFile(`${testFilesDir}/App.tsx`, testOutputDir);
+
+			expect(result).toBeTruthy();
+			expect(result).toContain('App.jsx');
+
+			const outputContent = await fs.readFile(result!, 'utf-8');
+
+			// Should remove some TypeScript annotations
+			expect(outputContent).not.toContain(': React.FC');
+			expect(outputContent).not.toContain('as const');
+
+			// Should keep React functionality
+			expect(outputContent).toContain('useState');
+			expect(outputContent).toContain('useEffect(() => {');
+			expect(outputContent).toContain('window.addEventListener');
+			expect(outputContent).toContain('window.removeEventListener');
+			expect(outputContent).toContain('window.parent.postMessage');
+			expect(outputContent).toContain('onClick={() => createRectangles(rectCount)}');
 		});
 	});
 
@@ -197,8 +249,9 @@ export default {
 				testOutputDir
 			);
 
-			expect(result).toHaveLength(3);
+			expect(result).toHaveLength(4);
 			expect(result.some((path) => path.includes('Button.jsx'))).toBe(true);
+			expect(result.some((path) => path.includes('App.jsx'))).toBe(true);
 			expect(result.some((path) => path.includes('Button.vue'))).toBe(true);
 			expect(result.some((path) => path.includes('Button.svelte'))).toBe(true);
 		});
@@ -275,6 +328,33 @@ export default {
 			const outputContent = await fs.readFile(result!, 'utf-8');
 			expect(outputContent).not.toContain(': React.ReactNode');
 			expect(outputContent).toContain("import React from 'react'");
+		});
+
+		it('should process App.tsx file correctly', async () => {
+			const result = await stripTSFromFile(`${testFilesDir}/App.tsx`, testOutputDir);
+
+			expect(result).toBeTruthy();
+			expect(result).toContain('App.jsx');
+
+			const outputContent = await fs.readFile(result!, 'utf-8');
+
+			// Should remove TypeScript annotations
+			expect(outputContent).not.toContain(': React.FC');
+			expect(outputContent).not.toContain(': number');
+			expect(outputContent).not.toContain(': string');
+			expect(outputContent).not.toContain(': MessageEvent');
+			expect(outputContent).not.toContain('as const');
+
+			// Should keep React functionality
+			expect(outputContent).toContain("import React, { useState, useEffect } from 'react'");
+			expect(outputContent).toContain('const App = () => {');
+			expect(outputContent).toContain('useState');
+			expect(outputContent).toContain('useEffect(() => {');
+			expect(outputContent).toContain('window.addEventListener');
+			expect(outputContent).toContain('window.removeEventListener');
+			expect(outputContent).toContain('window.parent.postMessage');
+			expect(outputContent).toContain('onClick={() => createRectangles(rectCount)}');
+			expect(outputContent).toContain('{nodeCount} nodes selected');
 		});
 
 		it('should return null for files without TypeScript', async () => {
@@ -430,6 +510,125 @@ export default Button;
 				expect(result).toContain('<button onClick={handleClick} style={style}>');
 				expect(result).toContain('{children}');
 				expect(result).toContain('export default Button');
+			});
+
+			it('should strip TypeScript annotations from complex React component strings', async () => {
+				const appCode = `
+import React, { useState, useEffect } from "react";
+import reactLogo from "./assets/react.svg";
+import Icon from "./components/Icon";
+import Input from "./components/Input";
+import Button from "./components/Button";
+
+const App: React.FC = () => {
+	const [rectCount, setRectCount] = useState<number>(5);
+	const [nodeCount, setNodeCount] = useState<number>(0);
+
+	const styles = {
+		container: {
+			display: "flex",
+			alignItems: "center",
+			justifyContent: "center",
+			height: "100%",
+			width: "100%",
+			flexDirection: "column" as const,
+		},
+		banner: {
+			display: "flex",
+			alignItems: "center",
+			gap: "18px",
+			marginBottom: "16px",
+		},
+		nodeCount: {
+			fontSize: "11px",
+		},
+		field: {
+			display: "flex",
+			gap: "var(--spacer-2)",
+			height: "var(--spacer-5)",
+			alignItems: "center",
+		},
+		createRectanglesInput: {
+			width: "40px",
+		},
+	};
+
+	const createRectangles = (count: number) => {
+		window.parent.postMessage(
+			{
+				pluginMessage: {
+					type: "CREATE_RECTANGLES",
+					count,
+				},
+			},
+			"*",
+		);
+	};
+
+	useEffect(() => {
+		const handleMessage = (event: MessageEvent) => {
+			const message = event.data.pluginMessage;
+			if (message?.type === "POST_NODE_COUNT") {
+				setNodeCount(message.count);
+			}
+		};
+
+		window.addEventListener("message", handleMessage);
+		return () => {
+			window.removeEventListener("message", handleMessage);
+		};
+	}, []);
+
+	return (
+		<div style={styles.container}>
+			<div style={styles.banner}>
+				<Icon svg="plugma" size={38} />
+				<Icon svg="plus" size={24} />
+				<img src={reactLogo} width="44" height="44" alt="Svelte logo" />
+			</div>
+
+			<div style={styles.field}>
+				<Input
+					type="number"
+					value={rectCount.toString()}
+					onChange={(value: string) => setRectCount(Number(value))}
+				/>
+				<Button
+					onClick={() => createRectangles(rectCount)}
+					href={undefined}
+					target={undefined}
+					style={styles.createRectanglesInput}
+				>
+					Create Rectangles
+				</Button>
+			</div>
+			<div style={styles.nodeCount}>
+				<span>{nodeCount} nodes selected</span>
+			</div>
+		</div>
+	);
+};
+
+export default App;
+`;
+
+				const result = await stripTSFromString(appCode, 'tsx');
+
+				// Should remove some TypeScript annotations
+				expect(result).not.toContain(': React.FC');
+				expect(result).not.toContain('as const');
+
+				// Should keep React functionality
+				expect(result).toContain("import React, { useState, useEffect } from 'react'");
+				expect(result).toContain('const App = () => {');
+				expect(result).toContain('useState');
+				expect(result).toContain('useEffect(() => {');
+				expect(result).toContain('window.addEventListener');
+				expect(result).toContain('window.removeEventListener');
+				expect(result).toContain('window.parent.postMessage');
+				expect(result).toContain('onClick={() => createRectangles(rectCount)}');
+				expect(result).toContain('{nodeCount} nodes selected');
+				expect(result).toContain('export default App');
 			});
 		});
 

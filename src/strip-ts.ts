@@ -92,6 +92,10 @@ export async function stripTSFromFile(
 				TSTypeAliasDeclaration(path: any) {
 					path.remove();
 				},
+				TSTypeParameterInstantiation(path: any) {
+					// Remove generic type parameters like <number> in useState<number>(5)
+					path.remove();
+				},
 				TSAsExpression(path: any) {
 					// Remove "as" casts, keep the expression
 					path.replaceWith(path.node.expression);
@@ -324,6 +328,10 @@ export async function stripTSFromString(
 					path.remove();
 				},
 				TSTypeAliasDeclaration(path: any) {
+					path.remove();
+				},
+				TSTypeParameterInstantiation(path: any) {
+					// Remove generic type parameters like <number> in useState<number>(5)
 					path.remove();
 				},
 				TSAsExpression(path: any) {
