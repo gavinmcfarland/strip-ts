@@ -617,3 +617,49 @@ export async function stripTSFromString(
 		throw new Error(`Unsupported file type: ${fileType}`);
 	}
 }
+
+/**
+ * Options for the stripTS function
+ */
+export interface StripTSOptions {
+	/** Output directory for processed files (default: 'output') */
+	outDir?: string;
+	/** Force processing even if lang doesn't equal "ts" (for Vue files) (default: false) */
+	forceStrip?: boolean;
+	/** Remove unused imports after TypeScript stripping (default: true) */
+	removeUnusedImports?: boolean;
+}
+
+/**
+ * Strips TypeScript from files using glob patterns.
+ * @param files - File globs or paths (can be a single string or array of strings)
+ * @param options - Configuration options
+ * @returns Array of output file paths
+ */
+export async function stripTS(files: string | string[], options: StripTSOptions = {}): Promise<string[]> {
+	const { outDir = 'output', forceStrip = false, removeUnusedImports: removeUnusedImportsOpt = true } = options;
+
+	// Normalize files to array
+	const fileGlobs = Array.isArray(files) ? files : [files];
+
+	// Use fast-glob to resolve the file patterns
+	const resolvedFiles = await fg(fileGlobs, { onlyFiles: true });
+
+	if (resolvedFiles.length === 0) {
+		return [];
+	}
+
+	const results: string[] = [];
+
+	for (const file of resolvedFiles) {
+		try {
+			const outPath = await stripTSFromFile(file, outDir, forceStrip, removeUnusedImportsOpt);
+			if (outPath) results.push(outPath);
+		} catch (err) {
+			console.error(`Error processing file ${file}:`, err);
+			// Continue processing other files even if one fails
+		}
+	}
+
+	return results;
+}

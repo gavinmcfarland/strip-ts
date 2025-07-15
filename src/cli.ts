@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { stripTSFromFiles } from './strip-ts.js';
+import { stripTS } from './strip-ts.js';
 
 async function main(): Promise<void> {
 	const args = process.argv.slice(2);
@@ -16,7 +16,7 @@ async function main(): Promise<void> {
 	}
 
 	try {
-		const outPaths = await stripTSFromFiles(globs, 'output', forceStrip);
+		const outPaths = await stripTS(globs, { forceStrip });
 		if (outPaths.length === 0) {
 			console.warn('⚠️ No files matched the provided patterns.');
 			return;

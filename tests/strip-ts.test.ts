@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
 import path from 'path';
-import { stripTSFromFiles, stripTSFromFile, stripTSFromString } from '../src/strip-ts';
+import { stripTSFromFiles, stripTSFromFile, stripTSFromString, stripTS } from '../src/strip-ts';
 
 describe('stripTSFromFiles', () => {
 	const testOutputDir = 'test-output';
@@ -836,6 +836,127 @@ function greet(user: User) {
 				// This should throw a parsing error, which is expected
 				await expect(stripTSFromString(malformedCode, 'ts')).rejects.toThrow();
 			});
+		});
+	});
+});
+
+describe('stripTS (unified function)', () => {
+	const testOutputDir = 'test-output';
+	const testFilesDir = 'tests/test-files';
+
+	describe('Single file processing', () => {
+		it('should process a single file with string input', async () => {
+			const result = await stripTS(`${testFilesDir}/Button.tsx`, { outDir: testOutputDir });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toContain('Button.jsx');
+
+			const outputContent = await fs.readFile(result[0], 'utf-8');
+			expect(outputContent).not.toContain(': React.ReactNode');
+			expect(outputContent).toContain('function Button(props)');
+		});
+
+		it('should process a single file with array input', async () => {
+			const result = await stripTS([`${testFilesDir}/Button.tsx`], { outDir: testOutputDir });
+
+			expect(result).toHaveLength(1);
+			expect(result[0]).toContain('Button.jsx');
+		});
+	});
+
+	describe('Multiple files processing', () => {
+		it('should process multiple files with glob patterns', async () => {
+			const result = await stripTS([`${testFilesDir}/*.tsx`, `${testFilesDir}/*.vue`], { outDir: testOutputDir });
+
+			expect(result.length).toBeGreaterThan(1);
+			expect(result.some((path) => path.includes('Button.jsx'))).toBe(true);
+			expect(result.some((path) => path.includes('App.jsx'))).toBe(true);
+			expect(result.some((path) => path.includes('Button.vue'))).toBe(true);
+		});
+
+		it('should handle mixed file types', async () => {
+			const result = await stripTS(`${testFilesDir}/*.{tsx,vue,svelte}`, { outDir: testOutputDir });
+
+			expect(result.length).toBeGreaterThan(1);
+		});
+	});
+
+	describe('Options handling', () => {
+		it('should respect outDir option', async () => {
+			const customOutDir = 'custom-output';
+			const result = await stripTS(`${testFilesDir}/Button.tsx`, { outDir: customOutDir });
+
+			expect(result[0]).toContain(customOutDir);
+		});
+
+		it('should respect forceStrip option for Vue files', async () => {
+			// Create a Vue file with TypeScript annotations but no lang="ts"
+			const vueWithTsFile = path.join(testFilesDir, 'VueWithTS.vue');
+			await fs.writeFile(
+				vueWithTsFile,
+				`
+<template>
+	<button @click="handleClick">Click me</button>
+</template>
+
+<script>
+interface ButtonProps {
+	onClick?: (event: MouseEvent) => void;
+}
+
+export default {
+	methods: {
+		handleClick(event: MouseEvent): void {
+			this.$emit('click', event);
+		}
+	}
+};
+</script>
+`
+			);
+
+			const result = await stripTS(vueWithTsFile, { outDir: testOutputDir, forceStrip: true });
+			expect(result).toHaveLength(1);
+
+			const outputContent = await fs.readFile(result[0], 'utf-8');
+			expect(outputContent).not.toContain('interface ButtonProps');
+			expect(outputContent).not.toContain(': MouseEvent');
+
+			// Clean up
+			await fs.unlink(vueWithTsFile);
+		});
+
+		it('should respect removeUnusedImports option', async () => {
+			const result = await stripTS(`${testFilesDir}/Button.tsx`, {
+				outDir: testOutputDir,
+				removeUnusedImports: false,
+			});
+
+			const outputContent = await fs.readFile(result[0], 'utf-8');
+			// With removeUnusedImports: false, React import should be preserved
+			expect(outputContent).toContain("import React from 'react'");
+		});
+	});
+
+	describe('Error handling', () => {
+		it('should handle non-existent files gracefully', async () => {
+			const result = await stripTS('non-existent-file.ts', { outDir: testOutputDir });
+			expect(result).toHaveLength(0);
+		});
+
+		it('should continue processing other files when one fails', async () => {
+			// Create a malformed file
+			const malformedFile = path.join(testFilesDir, 'malformed.ts');
+			await fs.writeFile(malformedFile, 'interface User { name: string; function greet() {');
+
+			const result = await stripTS([`${testFilesDir}/Button.tsx`, malformedFile], { outDir: testOutputDir });
+
+			// Should still process the valid file
+			expect(result.length).toBeGreaterThan(0);
+			expect(result.some((path) => path.includes('Button.jsx'))).toBe(true);
+
+			// Clean up
+			await fs.unlink(malformedFile);
 		});
 	});
 });
