@@ -137,13 +137,238 @@ async function removeUnusedImports(code: string, isJSX: boolean = false): Promis
 }
 
 /**
+ * Strips TypeScript from a string and returns the JavaScript equivalent.
+ * @param content - The TypeScript content as a string.
+ * @param fileType - The type of file ('ts', 'tsx', 'vue', 'svelte').
+ * @param options - Configuration options
+ * @returns The JavaScript content as a string.
+ */
+export async function stripTSFromString(
+	content: string,
+	fileType: 'ts' | 'tsx' | 'vue' | 'svelte',
+	options: { forceStrip?: boolean; removeUnusedImports?: boolean } = {}
+): Promise<string> {
+	const { forceStrip = false, removeUnusedImports: removeUnusedImportsOpt = true } = options;
+
+	if (fileType === 'ts' || fileType === 'tsx') {
+		// console.log(`Processing TypeScript string with Babel: ${fileType}`);
+		try {
+			// Use dynamic imports that work better with TypeScript compilation
+			const [traverseModule, generateModule] = await Promise.all([
+				import('@babel/traverse'),
+				import('@babel/generator'),
+			]);
+
+			// Robustly extract traverse and generate functions
+			let traverse: any = traverseModule;
+			if (typeof traverseModule === 'object') {
+				if (typeof (traverseModule as any)['default'] === 'function') {
+					traverse = (traverseModule as any)['default'];
+				} else if (
+					typeof (traverseModule as any)['default'] === 'object' &&
+					typeof (traverseModule as any)['default']['default'] === 'function'
+				) {
+					traverse = (traverseModule as any)['default']['default'];
+				}
+			}
+			if (typeof traverse !== 'function') {
+				console.error(
+					'Could not resolve traverse function. TraverseModule:',
+					traverseModule,
+					'Type:',
+					typeof traverse
+				);
+				throw new Error('Babel traverse is not a function');
+			}
+
+			let generate: any = generateModule;
+			if (typeof generateModule === 'object') {
+				if (typeof (generateModule as any)['default'] === 'function') {
+					generate = (generateModule as any)['default'];
+				} else if (
+					typeof (generateModule as any)['default'] === 'object' &&
+					typeof (generateModule as any)['default']['default'] === 'function'
+				) {
+					generate = (generateModule as any)['default']['default'];
+				}
+			}
+			if (typeof generate !== 'function') {
+				console.error(
+					'Could not resolve generate function. GenerateModule:',
+					generateModule,
+					'Type:',
+					typeof generate
+				);
+				throw new Error('Babel generate is not a function');
+			}
+
+			const isTSX = fileType === 'tsx';
+			const ast = babelParse(content, {
+				sourceType: 'module',
+				plugins: ['typescript', 'jsx'],
+			} as any);
+
+			traverse(ast, {
+				TSTypeAnnotation(path: any) {
+					path.remove();
+				},
+				TSInterfaceDeclaration(path: any) {
+					path.remove();
+				},
+				TSTypeAliasDeclaration(path: any) {
+					path.remove();
+				},
+				TSTypeParameterInstantiation(path: any) {
+					// Remove generic type parameters like <number> in useState<number>(5)
+					path.remove();
+				},
+				TSAsExpression(path: any) {
+					// Remove "as" casts, keep the expression
+					path.replaceWith(path.node.expression);
+				},
+				TSNonNullExpression(path: any) {
+					// Remove non-null assertions ("!")
+					path.replaceWith(path.node.expression);
+				},
+			});
+
+			const { code } = generate(ast, { retainLines: true, comments: true });
+
+			// Remove unused imports after TypeScript stripping
+			let processedCode = removeUnusedImportsOpt ? await removeUnusedImports(code, isTSX) : code;
+			// Collapse multiple blank lines into a single blank line
+			processedCode = processedCode.replace(/\n{3,}/g, '\n\n');
+			// Remove leading blank lines at the start of the file
+			processedCode = processedCode.replace(/^\s*\n/, '');
+			// console.log(`Babel TypeScript processing completed for ${fileType}`);
+			return processedCode;
+		} catch (error) {
+			console.error(`Error processing TypeScript string (${fileType}):`, error);
+			throw error;
+		}
+	} else if (fileType === 'vue') {
+		const sfc = parseVue(content);
+		const hasTs = sfc.descriptor.script?.lang === 'ts' || sfc.descriptor.scriptSetup?.lang === 'ts';
+
+		if (!hasTs && !forceStrip) {
+			return content; // Return original content if no TypeScript
+		}
+
+		// console.log(`Processing Vue string with TypeScript`);
+		try {
+			// Use Babel to strip TypeScript from the script content
+			const [traverseModule, generateModule] = await Promise.all([
+				import('@babel/traverse'),
+				import('@babel/generator'),
+			]);
+
+			// Robustly extract traverse and generate functions
+			let traverse: any = traverseModule;
+			if (typeof traverseModule === 'object') {
+				if (typeof (traverseModule as any)['default'] === 'function') {
+					traverse = (traverseModule as any)['default'];
+				} else if (
+					typeof (traverseModule as any)['default'] === 'object' &&
+					typeof (traverseModule as any)['default']['default'] === 'function'
+				) {
+					traverse = (traverseModule as any)['default']['default'];
+				}
+			}
+			if (typeof traverse !== 'function') {
+				throw new Error('Babel traverse is not a function');
+			}
+
+			let generate: any = generateModule;
+			if (typeof generateModule === 'object') {
+				if (typeof (generateModule as any)['default'] === 'function') {
+					generate = (generateModule as any)['default'];
+				} else if (
+					typeof (generateModule as any)['default'] === 'object' &&
+					typeof (generateModule as any)['default']['default'] === 'function'
+				) {
+					generate = (generateModule as any)['default']['default'];
+				}
+			}
+			if (typeof generate !== 'function') {
+				throw new Error('Babel generate is not a function');
+			}
+
+			// Process the script content with Babel
+			const scriptContent = sfc.descriptor.script?.content || '';
+			const ast = babelParse(scriptContent, {
+				sourceType: 'module',
+				plugins: ['typescript'],
+			} as any);
+
+			traverse(ast, {
+				TSTypeAnnotation(path: any) {
+					path.remove();
+				},
+				TSInterfaceDeclaration(path: any) {
+					path.remove();
+				},
+				TSTypeAliasDeclaration(path: any) {
+					path.remove();
+				},
+				TSAsExpression(path: any) {
+					// Remove "as" casts, keep the expression
+					path.replaceWith(path.node.expression);
+				},
+				TSNonNullExpression(path: any) {
+					// Remove non-null assertions ("!")
+					path.replaceWith(path.node.expression);
+				},
+			});
+
+			const { code: processedScript } = generate(ast, { retainLines: true, comments: true });
+
+			// Remove unused imports from the script content
+			const cleanedScript = removeUnusedImportsOpt
+				? await removeUnusedImports(processedScript, false)
+				: processedScript;
+
+			// Replace the script content in the Vue string
+			const replaced = content
+				.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>')
+				.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script setup>')
+				.replace(/<script[^>]*>[^]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
+
+			// console.log(`Vue TypeScript processing completed`);
+			return replaced;
+		} catch (error) {
+			console.error(`Error processing Vue string:`, error);
+			throw error;
+		}
+	} else if (fileType === 'svelte') {
+		const processed = await preprocess(content, sveltePreprocess({ typescript: true }), {
+			filename: 'temp.svelte',
+		});
+		let replaced = processed.code.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>');
+
+		// Extract and process script content for unused imports
+		const scriptMatch = replaced.match(/<script>([\s\S]*?)<\/script>/);
+		if (scriptMatch) {
+			const scriptContent = scriptMatch[1];
+			const cleanedScript = removeUnusedImportsOpt
+				? await removeUnusedImports(scriptContent, false)
+				: scriptContent;
+			replaced = replaced.replace(/<script>[\s\S]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
+		}
+
+		return replaced;
+	} else {
+		throw new Error(`Unsupported file type: ${fileType}`);
+	}
+}
+
+/**
  * Strips TypeScript from a single file and writes the output to outDir.
  * @param filePath - Path to the file to process.
  * @param outDir - Output directory.
  * @param forceStrip - Force processing even if lang doesn't equal "ts" (for Vue files).
  * @returns The output file path.
  */
-export async function stripTSFromFile(
+async function stripTSFromFile(
 	filePath: string,
 	outDir: string = 'output',
 	forceStrip: boolean = false,
@@ -331,7 +556,9 @@ export async function stripTSFromFile(
 			const { code: processedScript } = generate(ast, { retainLines: true, comments: true });
 
 			// Remove unused imports from the script content
-			const cleanedScript = await removeUnusedImports(processedScript, false);
+			const cleanedScript = removeUnusedImportsOpt
+				? await removeUnusedImports(processedScript, false)
+				: processedScript;
 
 			// Replace the script content in the Vue file
 			const replaced = fileContent
@@ -356,7 +583,9 @@ export async function stripTSFromFile(
 		const scriptMatch = replaced.match(/<script>([\s\S]*?)<\/script>/);
 		if (scriptMatch) {
 			const scriptContent = scriptMatch[1];
-			const cleanedScript = await removeUnusedImports(scriptContent, false);
+			const cleanedScript = removeUnusedImportsOpt
+				? await removeUnusedImports(scriptContent, false)
+				: scriptContent;
 			replaced = replaced.replace(/<script>[\s\S]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
 		}
 
@@ -366,255 +595,6 @@ export async function stripTSFromFile(
 		return outPath;
 	} else {
 		throw new Error(`Unsupported file type: ${filePath}`);
-	}
-}
-
-/**
- * Strips TypeScript from multiple files matching the provided globs or file paths.
- * @param globs - Array of file globs or paths.
- * @param outDir - Output directory.
- * @param forceStrip - Force processing even if lang doesn't equal "ts" (for Vue files).
- * @returns Array of output file paths.
- */
-export async function stripTSFromFiles(
-	globs: string[],
-	outDir: string = 'output',
-	forceStrip: boolean = false
-): Promise<string[]> {
-	const files = await fg(globs, { onlyFiles: true });
-	if (files.length === 0) {
-		return [];
-	}
-	const results: string[] = [];
-	for (const file of files) {
-		try {
-			const outPath = await stripTSFromFile(file, outDir, forceStrip);
-			if (outPath) results.push(outPath);
-		} catch (err) {
-			// Optionally, collect errors or rethrow
-			// For now, just skip errored files
-		}
-	}
-	return results;
-}
-
-/**
- * Strips TypeScript from a string and returns the JavaScript equivalent.
- * @param content - The TypeScript content as a string.
- * @param fileType - The type of file ('ts', 'tsx', 'vue', 'svelte').
- * @param forceStrip - Force processing even if lang doesn't equal "ts" (for Vue files).
- * @returns The JavaScript content as a string.
- */
-export async function stripTSFromString(
-	content: string,
-	fileType: 'ts' | 'tsx' | 'vue' | 'svelte',
-	forceStrip: boolean = false,
-	removeUnusedImportsOpt: boolean = true
-): Promise<string> {
-	if (fileType === 'ts' || fileType === 'tsx') {
-		// console.log(`Processing TypeScript string with Babel: ${fileType}`);
-		try {
-			// Use dynamic imports that work better with TypeScript compilation
-			const [traverseModule, generateModule] = await Promise.all([
-				import('@babel/traverse'),
-				import('@babel/generator'),
-			]);
-
-			// Robustly extract traverse and generate functions
-			let traverse: any = traverseModule;
-			if (typeof traverseModule === 'object') {
-				if (typeof (traverseModule as any)['default'] === 'function') {
-					traverse = (traverseModule as any)['default'];
-				} else if (
-					typeof (traverseModule as any)['default'] === 'object' &&
-					typeof (traverseModule as any)['default']['default'] === 'function'
-				) {
-					traverse = (traverseModule as any)['default']['default'];
-				}
-			}
-			if (typeof traverse !== 'function') {
-				console.error(
-					'Could not resolve traverse function. TraverseModule:',
-					traverseModule,
-					'Type:',
-					typeof traverse
-				);
-				throw new Error('Babel traverse is not a function');
-			}
-
-			let generate: any = generateModule;
-			if (typeof generateModule === 'object') {
-				if (typeof (generateModule as any)['default'] === 'function') {
-					generate = (generateModule as any)['default'];
-				} else if (
-					typeof (generateModule as any)['default'] === 'object' &&
-					typeof (generateModule as any)['default']['default'] === 'function'
-				) {
-					generate = (generateModule as any)['default']['default'];
-				}
-			}
-			if (typeof generate !== 'function') {
-				console.error(
-					'Could not resolve generate function. GenerateModule:',
-					generateModule,
-					'Type:',
-					typeof generate
-				);
-				throw new Error('Babel generate is not a function');
-			}
-
-			const isTSX = fileType === 'tsx';
-			const ast = babelParse(content, {
-				sourceType: 'module',
-				plugins: ['typescript', 'jsx'],
-			} as any);
-
-			traverse(ast, {
-				TSTypeAnnotation(path: any) {
-					path.remove();
-				},
-				TSInterfaceDeclaration(path: any) {
-					path.remove();
-				},
-				TSTypeAliasDeclaration(path: any) {
-					path.remove();
-				},
-				TSTypeParameterInstantiation(path: any) {
-					// Remove generic type parameters like <number> in useState<number>(5)
-					path.remove();
-				},
-				TSAsExpression(path: any) {
-					// Remove "as" casts, keep the expression
-					path.replaceWith(path.node.expression);
-				},
-				TSNonNullExpression(path: any) {
-					// Remove non-null assertions ("!")
-					path.replaceWith(path.node.expression);
-				},
-			});
-
-			const { code } = generate(ast, { retainLines: true, comments: true });
-
-			// Remove unused imports after TypeScript stripping
-			let processedCode = removeUnusedImportsOpt ? await removeUnusedImports(code, isTSX) : code;
-			// Collapse multiple blank lines into a single blank line
-			processedCode = processedCode.replace(/\n{3,}/g, '\n\n');
-			// Remove leading blank lines at the start of the file
-			processedCode = processedCode.replace(/^\s*\n/, '');
-			// console.log(`Babel TypeScript processing completed for ${fileType}`);
-			return processedCode;
-		} catch (error) {
-			console.error(`Error processing TypeScript string (${fileType}):`, error);
-			throw error;
-		}
-	} else if (fileType === 'vue') {
-		const sfc = parseVue(content);
-		const hasTs = sfc.descriptor.script?.lang === 'ts' || sfc.descriptor.scriptSetup?.lang === 'ts';
-
-		if (!hasTs && !forceStrip) {
-			return content; // Return original content if no TypeScript
-		}
-
-		// console.log(`Processing Vue string with TypeScript`);
-		try {
-			// Use Babel to strip TypeScript from the script content
-			const [traverseModule, generateModule] = await Promise.all([
-				import('@babel/traverse'),
-				import('@babel/generator'),
-			]);
-
-			// Robustly extract traverse and generate functions
-			let traverse: any = traverseModule;
-			if (typeof traverseModule === 'object') {
-				if (typeof (traverseModule as any)['default'] === 'function') {
-					traverse = (traverseModule as any)['default'];
-				} else if (
-					typeof (traverseModule as any)['default'] === 'object' &&
-					typeof (traverseModule as any)['default']['default'] === 'function'
-				) {
-					traverse = (traverseModule as any)['default']['default'];
-				}
-			}
-			if (typeof traverse !== 'function') {
-				throw new Error('Babel traverse is not a function');
-			}
-
-			let generate: any = generateModule;
-			if (typeof generateModule === 'object') {
-				if (typeof (generateModule as any)['default'] === 'function') {
-					generate = (generateModule as any)['default'];
-				} else if (
-					typeof (generateModule as any)['default'] === 'object' &&
-					typeof (generateModule as any)['default']['default'] === 'function'
-				) {
-					generate = (generateModule as any)['default']['default'];
-				}
-			}
-			if (typeof generate !== 'function') {
-				throw new Error('Babel generate is not a function');
-			}
-
-			// Process the script content with Babel
-			const scriptContent = sfc.descriptor.script?.content || '';
-			const ast = babelParse(scriptContent, {
-				sourceType: 'module',
-				plugins: ['typescript'],
-			} as any);
-
-			traverse(ast, {
-				TSTypeAnnotation(path: any) {
-					path.remove();
-				},
-				TSInterfaceDeclaration(path: any) {
-					path.remove();
-				},
-				TSTypeAliasDeclaration(path: any) {
-					path.remove();
-				},
-				TSAsExpression(path: any) {
-					// Remove "as" casts, keep the expression
-					path.replaceWith(path.node.expression);
-				},
-				TSNonNullExpression(path: any) {
-					// Remove non-null assertions ("!")
-					path.replaceWith(path.node.expression);
-				},
-			});
-
-			const { code: processedScript } = generate(ast, { retainLines: true, comments: true });
-
-			// Remove unused imports from the script content
-			const cleanedScript = await removeUnusedImports(processedScript, false);
-
-			// Replace the script content in the Vue string
-			const replaced = content
-				.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>')
-				.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script setup>')
-				.replace(/<script[^>]*>[^]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
-
-			// console.log(`Vue TypeScript processing completed`);
-			return replaced;
-		} catch (error) {
-			console.error(`Error processing Vue string:`, error);
-			throw error;
-		}
-	} else if (fileType === 'svelte') {
-		const processed = await preprocess(content, sveltePreprocess({ typescript: true }), {
-			filename: 'temp.svelte',
-		});
-		let replaced = processed.code.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>');
-
-		// Extract and process script content for unused imports
-		const scriptMatch = replaced.match(/<script>([\s\S]*?)<\/script>/);
-		if (scriptMatch) {
-			const scriptContent = scriptMatch[1];
-			const cleanedScript = await removeUnusedImports(scriptContent, false);
-			replaced = replaced.replace(/<script>[\s\S]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
-		}
-
-		return replaced;
-	} else {
-		throw new Error(`Unsupported file type: ${fileType}`);
 	}
 }
 

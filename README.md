@@ -21,7 +21,7 @@ npm install strip-ts
 
 ## Usage
 
-### Unified API (Recommended)
+### Programmatic API
 
 The main function `stripTS` accepts file globs and options:
 
@@ -55,6 +55,23 @@ interface StripTSOptions {
 }
 ```
 
+### String Processing
+
+For processing TypeScript content as strings:
+
+```typescript
+import { stripTSFromString } from 'strip-ts';
+
+// Process a TypeScript string
+const jsCode = await stripTSFromString(tsCode, 'tsx');
+
+// Process a Vue string with options
+const vueCode = await stripTSFromString(vueString, 'vue', {
+    forceStrip: true,
+    removeUnusedImports: false,
+});
+```
+
 ### CLI Usage
 
 ```bash
@@ -66,23 +83,6 @@ npx strip-ts "src/**/*.tsx" "src/**/*.vue"
 
 # Force strip TypeScript from Vue files without lang="ts"
 npx strip-ts --force-strip "src/**/*.vue"
-```
-
-### Legacy API
-
-For backward compatibility, the original functions are still available:
-
-```typescript
-import { stripTSFromFile, stripTSFromFiles, stripTSFromString } from 'strip-ts';
-
-// Process a single file
-const result = await stripTSFromFile('src/components/Button.tsx', 'dist');
-
-// Process multiple files
-const results = await stripTSFromFiles(['src/**/*.tsx'], 'dist');
-
-// Process a string
-const jsCode = await stripTSFromString(tsCode, 'tsx');
 ```
 
 ## Examples
@@ -225,7 +225,3 @@ export default {
 -   Comments and formatting
 -   Used imports
 -   Runtime functionality
-
-## License
-
-MIT
