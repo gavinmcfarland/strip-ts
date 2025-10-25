@@ -84,6 +84,12 @@ async function removeUnusedImports(code: string, isJSX: boolean = false): Promis
 				const specifiers = path.node.specifiers || [];
 				const usedSpecifiers: any[] = [];
 
+				// If there are no specifiers, this is a side-effect import (e.g., import './styles.css')
+				// We should preserve these imports as they have side effects
+				if (specifiers.length === 0) {
+					return; // Keep the import, don't process it
+				}
+
 				specifiers.forEach((specifier: any) => {
 					if (specifier.type === 'ImportDefaultSpecifier') {
 						// Check if default import is used (as identifier or JSX element)
