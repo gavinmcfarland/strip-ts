@@ -249,7 +249,6 @@ export async function stripTSFromString(
 			// console.log(`Babel TypeScript processing completed for ${fileType}`);
 			return processedCode;
 		} catch (error) {
-			console.error(`Error processing TypeScript string (${fileType}):`, error);
 			throw error;
 		}
 	} else if (fileType === 'vue') {
@@ -342,7 +341,6 @@ export async function stripTSFromString(
 			// console.log(`Vue TypeScript processing completed`);
 			return replaced;
 		} catch (error) {
-			console.error(`Error processing Vue string:`, error);
 			throw error;
 		}
 	} else if (fileType === 'svelte') {
@@ -363,7 +361,7 @@ export async function stripTSFromString(
 
 		return replaced;
 	} else {
-		throw new Error(`Unsupported file type: ${fileType}`);
+		throw new Error(`Unsupported file type: ${fileType}. Supported types are ts, tsx, vue, and svelte`);
 	}
 }
 
@@ -482,7 +480,6 @@ async function stripTSFromFile(
 			// console.log(`Babel TypeScript processing completed for ${filePath}`);
 			return outPath;
 		} catch (error) {
-			console.error(`Error processing TypeScript file ${filePath}:`, error);
 			throw error;
 		}
 	} else if (ext === '.vue') {
@@ -578,7 +575,6 @@ async function stripTSFromFile(
 			// console.log(`Vue TypeScript processing completed for ${filePath}`);
 			return outPath;
 		} catch (error) {
-			console.error(`Error processing Vue file ${filePath}:`, error);
 			throw error;
 		}
 	} else if (ext === '.svelte') {
@@ -600,7 +596,7 @@ async function stripTSFromFile(
 		await fs.writeFile(outPath, replaced, 'utf-8');
 		return outPath;
 	} else {
-		throw new Error(`Unsupported file type: ${filePath}`);
+		throw new Error(`Unsupported file type: ${ext}. Supported types are .ts, .tsx, .vue, and .svelte`);
 	}
 }
 
@@ -642,8 +638,8 @@ export async function stripTS(files: string | string[], options: StripTSOptions 
 			const outPath = await stripTSFromFile(file, outDir, forceStrip, removeUnusedImportsOpt);
 			if (outPath) results.push(outPath);
 		} catch (err) {
-			console.error(`Error processing file ${file}:`, err);
-			// Continue processing other files even if one fails
+			// Log error but continue processing other files
+			console.error(`Error processing file ${file}:`, err instanceof Error ? err.message : err);
 		}
 	}
 
