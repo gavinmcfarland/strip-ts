@@ -4,6 +4,11 @@
 </template>
 
 <script>
+
+
+
+
+
 export default {
   methods: {
     handleClick(event) {

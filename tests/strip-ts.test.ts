@@ -29,22 +29,25 @@ describe('stripTS (unified API)', () => {
 
 	describe('Multiple files processing', () => {
 		it('should process multiple files with glob patterns', async () => {
-			const result = await stripTS([`${testFilesDir}/*.tsx`, `${testFilesDir}/*.vue`], { outDir: testOutputDir });
+			const result = await stripTS([`${testFilesDir}/*.ts`, `${testFilesDir}/*.tsx`, `${testFilesDir}/*.vue`], {
+				outDir: testOutputDir,
+			});
 
 			expect(result.length).toBeGreaterThan(1);
 			expect(result.some((path) => path.includes('Button.jsx'))).toBe(true);
 			expect(result.some((path) => path.includes('App.jsx'))).toBe(true);
 			expect(result.some((path) => path.includes('Button.vue'))).toBe(true);
+			expect(result.some((path) => path.includes('svelte.config.js'))).toBe(true);
 		});
 
 		it('should handle mixed file types', async () => {
-			const result = await stripTS(`${testFilesDir}/*.{tsx,vue,svelte}`, { outDir: testOutputDir });
+			const result = await stripTS(`${testFilesDir}/*.{ts,tsx,vue,svelte}`, { outDir: testOutputDir });
 
 			expect(result.length).toBeGreaterThan(1);
 		});
 
 		it('should preserve formatting and newlines', async () => {
-			const result = await stripTS([`${testFilesDir}/*.tsx`], { outDir: testOutputDir });
+			const result = await stripTS([`${testFilesDir}/*.ts`, `${testFilesDir}/*.tsx`], { outDir: testOutputDir });
 
 			// Check Button.jsx formatting
 			const buttonFile = result.find((path) => path.includes('Button.jsx'));

@@ -299,7 +299,7 @@ export async function stripTSFromString(
 			}
 
 			// Process the script content with Babel
-			const scriptContent = sfc.descriptor.script?.content || '';
+			const scriptContent = sfc.descriptor.script?.content || sfc.descriptor.scriptSetup?.content || '';
 			const ast = babelParse(scriptContent, {
 				sourceType: 'module',
 				plugins: ['typescript'],
@@ -327,16 +327,23 @@ export async function stripTSFromString(
 
 			const { code: processedScript } = generate(ast, { retainLines: true, comments: true });
 
-			// Remove unused imports from the script content
-			const cleanedScript = removeUnusedImportsOpt
-				? await removeUnusedImports(processedScript, false)
-				: processedScript;
+			// Note: We don't remove unused imports from Vue files because imports
+			// are often used in the template, which the removeUnusedImports function
+			// cannot analyze properly. The Vue compiler will handle unused imports.
 
 			// Replace the script content in the Vue string
-			const replaced = content
-				.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>')
-				.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script setup>')
-				.replace(/<script[^>]*>[^]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
+			let replaced = content;
+
+			// Handle script setup first
+			if (sfc.descriptor.scriptSetup) {
+				replaced = replaced
+					.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script>')
+					.replace(/<script setup[^>]*>[^]*?<\/script>/, `<script>\n${processedScript}\n</script>`);
+			} else if (sfc.descriptor.script) {
+				replaced = replaced
+					.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>')
+					.replace(/<script[^>]*>[^]*?<\/script>/, `<script>\n${processedScript}\n</script>`);
+			}
 
 			// console.log(`Vue TypeScript processing completed`);
 			return replaced;
@@ -349,15 +356,18 @@ export async function stripTSFromString(
 		});
 		let replaced = processed.code.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>');
 
-		// Extract and process script content for unused imports
+		// Extract and fix script content formatting to match Vue processing
 		const scriptMatch = replaced.match(/<script>([\s\S]*?)<\/script>/);
 		if (scriptMatch) {
 			const scriptContent = scriptMatch[1];
-			const cleanedScript = removeUnusedImportsOpt
-				? await removeUnusedImports(scriptContent, false)
-				: scriptContent;
-			replaced = replaced.replace(/<script>[\s\S]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
+			// Ensure there's a newline after <script> and before </script>
+			const formattedScript = scriptContent.trim();
+			replaced = replaced.replace(/<script>[\s\S]*?<\/script>/, `<script>\n${formattedScript}\n</script>`);
 		}
+
+		// Note: We don't remove unused imports from Svelte files because imports
+		// are often used in the template, which the removeUnusedImports function
+		// cannot analyze properly. The Svelte compiler will handle unused imports.
 
 		return replaced;
 	} else {
@@ -530,7 +540,7 @@ async function stripTSFromFile(
 			}
 
 			// Process the script content with Babel
-			const scriptContent = sfc.descriptor.script?.content || '';
+			const scriptContent = sfc.descriptor.script?.content || sfc.descriptor.scriptSetup?.content || '';
 			const ast = babelParse(scriptContent, {
 				sourceType: 'module',
 				plugins: ['typescript'],
@@ -558,16 +568,23 @@ async function stripTSFromFile(
 
 			const { code: processedScript } = generate(ast, { retainLines: true, comments: true });
 
-			// Remove unused imports from the script content
-			const cleanedScript = removeUnusedImportsOpt
-				? await removeUnusedImports(processedScript, false)
-				: processedScript;
+			// Note: We don't remove unused imports from Vue files because imports
+			// are often used in the template, which the removeUnusedImports function
+			// cannot analyze properly. The Vue compiler will handle unused imports.
 
 			// Replace the script content in the Vue file
-			const replaced = fileContent
-				.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>')
-				.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script setup>')
-				.replace(/<script[^>]*>[^]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
+			let replaced = fileContent;
+
+			// Handle script setup first
+			if (sfc.descriptor.scriptSetup) {
+				replaced = replaced
+					.replace(/<script setup[^>]*lang="ts"[^>]*>/, '<script>')
+					.replace(/<script setup[^>]*>[^]*?<\/script>/, `<script>\n${processedScript}\n</script>`);
+			} else if (sfc.descriptor.script) {
+				replaced = replaced
+					.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>')
+					.replace(/<script[^>]*>[^]*?<\/script>/, `<script>\n${processedScript}\n</script>`);
+			}
 
 			const outPath = path.join(outDir, fileName);
 			await fs.mkdir(path.dirname(outPath), { recursive: true });
@@ -581,15 +598,18 @@ async function stripTSFromFile(
 		const processed = await preprocess(fileContent, sveltePreprocess({ typescript: true }), { filename: filePath });
 		let replaced = processed.code.replace(/<script[^>]*lang="ts"[^>]*>/, '<script>');
 
-		// Extract and process script content for unused imports
+		// Extract and fix script content formatting to match Vue processing
 		const scriptMatch = replaced.match(/<script>([\s\S]*?)<\/script>/);
 		if (scriptMatch) {
 			const scriptContent = scriptMatch[1];
-			const cleanedScript = removeUnusedImportsOpt
-				? await removeUnusedImports(scriptContent, false)
-				: scriptContent;
-			replaced = replaced.replace(/<script>[\s\S]*?<\/script>/, `<script>\n${cleanedScript}\n</script>`);
+			// Ensure there's a newline after <script> and before </script>
+			const formattedScript = scriptContent.trim();
+			replaced = replaced.replace(/<script>[\s\S]*?<\/script>/, `<script>\n${formattedScript}\n</script>`);
 		}
+
+		// Note: We don't remove unused imports from Svelte files because imports
+		// are often used in the template, which the removeUnusedImports function
+		// cannot analyze properly. The Svelte compiler will handle unused imports.
 
 		const outPath = path.join(outDir, fileName);
 		await fs.mkdir(path.dirname(outPath), { recursive: true });
